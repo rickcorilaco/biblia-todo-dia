@@ -1,0 +1,905 @@
+<!DOCTYPE html>
+<html lang="pt-BR" class="h-full bg-slate-900 text-slate-100">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Bíblia Quest - Leitura Bíblica Diária & Gamificação</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <!-- Tailwind Config -->
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50: '#f0fdf4',
+              100: '#dcfce7',
+              500: '#22c55e',
+              600: '#16a34a',
+              700: '#15803d',
+            },
+            amberGold: '#f59e0b'
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    /* Custom Scrollbar */
+    ::-webkit-scrollbar {
+      width: 8px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #0f172a;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #334155;
+      border-radius: 4px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #475569;
+    }
+    .animate-bounce-short {
+      animation: bounce 0.6s infinite alternate;
+    }
+  </style>
+</head>
+<body class="h-full flex flex-col font-sans antialiased selection:bg-brand-500 selection:text-white">
+
+  <!-- TOP NAVBAR -->
+  <header class="sticky top-0 z-40 bg-slate-800/90 backdrop-blur border-b border-slate-700 px-4 py-3">
+    <div class="max-w-6xl mx-auto flex items-center justify-between">
+      <!-- Logo -->
+      <div class="flex items-center gap-3">
+        <div class="p-2 bg-brand-600 rounded-xl text-white shadow-lg shadow-brand-600/30">
+          <i data-lucide="book-open-check" class="w-6 h-6"></i>
+        </div>
+        <div>
+          <h1 class="font-bold text-lg leading-none text-white tracking-wide">Bíblia<span class="text-brand-500">Quest</span></h1>
+          <p class="text-xs text-slate-400">Jornada Diária de Leitura</p>
+        </div>
+      </div>
+
+      <!-- Gamification Stats (Streak, XP, Level) -->
+      <div class="flex items-center gap-3 sm:gap-6">
+        <!-- Streak -->
+        <div class="flex items-center gap-1.5 bg-slate-900/80 px-3 py-1.5 rounded-full border border-amber-500/30" title="Ofensiva de Dias Seguidos">
+          <i data-lucide="flame" class="w-5 h-5 text-amber-500 fill-amber-500 animate-pulse"></i>
+          <span id="stat-streak" class="font-extrabold text-amber-400 text-sm sm:text-base">0</span>
+          <span class="text-xs text-slate-400 hidden sm:inline">dias</span>
+        </div>
+
+        <!-- XP -->
+        <div class="flex items-center gap-1.5 bg-slate-900/80 px-3 py-1.5 rounded-full border border-brand-500/30" title="Pontos de Experiência">
+          <i data-lucide="zap" class="w-5 h-5 text-brand-500 fill-brand-500"></i>
+          <span id="stat-xp" class="font-extrabold text-brand-400 text-sm sm:text-base">0</span>
+          <span class="text-xs text-slate-400 hidden sm:inline">XP</span>
+        </div>
+
+        <!-- Level -->
+        <div class="flex items-center gap-2 bg-slate-900/80 px-3 py-1.5 rounded-full border border-indigo-500/30" title="Nível de Leitor">
+          <i data-lucide="award" class="w-5 h-5 text-indigo-400"></i>
+          <span id="stat-level" class="font-bold text-indigo-300 text-xs sm:text-sm">Nível 1</span>
+        </div>
+
+        <!-- User Info / Avatar -->
+        <button id="btn-user-profile" onclick="openUserModal()" class="flex items-center gap-2 pl-2 border-l border-slate-700 hover:opacity-80 transition">
+          <div class="w-8 h-8 rounded-full bg-slate-700 border border-slate-500 flex items-center justify-center font-bold text-sm text-brand-400" id="user-avatar">
+            U
+          </div>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- MAIN CONTENT AREA -->
+  <main class="flex-1 max-w-6xl w-full mx-auto p-4 sm:p-6 grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+    <!-- LEFT COLUMN: MAIN ACTION & CURRENT PROGRESS (Cols 2) -->
+    <section class="lg:col-span-2 space-y-6">
+
+      <!-- DAILY HERO BANNER / NEXT CHAPTER -->
+      <div class="bg-gradient-to-r from-slate-800 via-slate-800 to-brand-950/40 p-6 rounded-2xl border border-slate-700 shadow-xl relative overflow-hidden">
+        <div class="absolute -right-10 -bottom-10 opacity-10 text-brand-500 pointer-events-none">
+          <i data-lucide="book-open" class="w-64 h-64"></i>
+        </div>
+
+        <div class="relative z-10 space-y-4">
+          <div class="flex items-center justify-between flex-wrap gap-2">
+            <span class="inline-flex items-center gap-1.5 bg-brand-500/10 text-brand-400 text-xs font-semibold px-3 py-1 rounded-full border border-brand-500/20">
+              <i data-lucide="compass" class="w-3.5 h-3.5"></i> Meta de Hoje
+            </span>
+            <!-- Versão Bíblica Selector -->
+            <div class="flex items-center gap-2">
+              <label for="version-select" class="text-xs text-slate-400">Tradução:</label>
+              <select id="version-select" onchange="changeBibleVersion(this.value)" class="bg-slate-900 text-slate-200 border border-slate-700 rounded-lg text-xs px-2.5 py-1.5 focus:ring-2 focus:ring-brand-500 focus:outline-none">
+                <option value="almeida">Almeida (AA / Domínio Público API)</option>
+                <option value="nvi">NVI (Info de Licença / Copyright)</option>
+              </select>
+            </div>
+          </div>
+
+          <div>
+            <p class="text-xs uppercase tracking-wider text-slate-400 font-medium">Próxima Leitura Sugerida</p>
+            <h2 id="next-chapter-title" class="text-2xl sm:text-3xl font-extrabold text-white mt-1">
+              Gênesis 1
+            </h2>
+            <p id="next-chapter-subtitle" class="text-sm text-slate-300 mt-1">
+              Início da criação do mundo e das origens da humanidade.
+            </p>
+          </div>
+
+          <div class="pt-2 flex flex-wrap items-center gap-3">
+            <button onclick="openReaderModal()" class="flex-1 sm:flex-initial bg-brand-600 hover:bg-brand-500 text-white font-bold px-6 py-3 rounded-xl shadow-lg shadow-brand-600/30 flex items-center justify-center gap-2 transition active:scale-95">
+              <i data-lucide="play" class="w-5 h-5 fill-current"></i>
+              <span>Ler Agora (+50 XP)</span>
+            </button>
+            <button onclick="scrollToBooks()" class="bg-slate-700/60 hover:bg-slate-700 text-slate-200 font-medium px-4 py-3 rounded-xl border border-slate-600 transition flex items-center justify-center gap-2">
+              <i data-lucide="list-tree" class="w-4 h-4"></i>
+              <span>Escolher Livro</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- BIBLICAL VERSIONS EXPLANATION BANNER -->
+      <div id="version-info-box" class="bg-slate-800/80 border border-slate-700 rounded-xl p-4 text-xs text-slate-300 space-y-2">
+        <div class="flex items-start gap-2.5">
+          <i data-lucide="info" class="w-5 h-5 text-sky-400 shrink-0 mt-0.5"></i>
+          <div>
+            <h4 class="font-bold text-slate-200 text-sm">Sobre as Versões Bíblicas (NVI vs. Almeida)</h4>
+            <p id="version-info-text" class="mt-1 leading-relaxed">
+              Atualmente utilizando a tradução <strong>Almeida (Domínio Público)</strong> via API pública gratuita (<code class="bg-slate-900 px-1 rounded text-sky-300">bible-api.com</code>). 
+              A versão <strong>NVI (Nova Versão Internacional)</strong> é protegida por Direitos Autorais pela editora <em>Biblica Inc.</em> e exige chave de API paga/licenciada para exibição integral.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <!-- VISUAL PROGRESS OVERVIEW -->
+      <div class="bg-slate-800 border border-slate-700 rounded-2xl p-5 space-y-4">
+        <div class="flex items-center justify-between">
+          <h3 class="font-bold text-slate-200 flex items-center gap-2">
+            <i data-lucide="bar-chart-3" class="w-5 h-5 text-brand-500"></i> Progresso Geral da Bíblia
+          </h3>
+          <span id="overall-percentage" class="text-sm font-extrabold text-brand-400">0%</span>
+        </div>
+
+        <!-- Progress Bar -->
+        <div class="w-full bg-slate-900 rounded-full h-3 overflow-hidden border border-slate-700/50">
+          <div id="overall-progress-bar" class="bg-gradient-to-r from-brand-600 to-brand-400 h-full w-0 transition-all duration-500"></div>
+        </div>
+
+        <div class="grid grid-cols-3 gap-3 text-center pt-2">
+          <div class="bg-slate-900/60 p-2.5 rounded-xl border border-slate-700/50">
+            <p class="text-xs text-slate-400">Capítulos Lidos</p>
+            <p id="stat-chapters-read" class="text-lg font-bold text-white mt-0.5">0 / 1189</p>
+          </div>
+          <div class="bg-slate-900/60 p-2.5 rounded-xl border border-slate-700/50">
+            <p class="text-xs text-slate-400">Antigo Testamento</p>
+            <p id="stat-at-read" class="text-lg font-bold text-slate-300 mt-0.5">0 / 929</p>
+          </div>
+          <div class="bg-slate-900/60 p-2.5 rounded-xl border border-slate-700/50">
+            <p class="text-xs text-slate-400">Novo Testamento</p>
+            <p id="stat-nt-read" class="text-lg font-bold text-slate-300 mt-0.5">0 / 260</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- BIBLE BOOKS GRID -->
+      <div id="books-section" class="bg-slate-800 border border-slate-700 rounded-2xl p-5 space-y-4">
+        <div class="flex items-center justify-between flex-wrap gap-2">
+          <h3 class="font-bold text-slate-200 flex items-center gap-2">
+            <i data-lucide="book" class="w-5 h-5 text-indigo-400"></i> Livros da Bíblia
+          </h3>
+          <!-- Filter Tabs -->
+          <div class="flex bg-slate-900 p-1 rounded-lg border border-slate-700 text-xs">
+            <button onclick="filterBooks('all')" id="tab-all" class="px-3 py-1 rounded-md font-medium text-white bg-slate-700">Todos</button>
+            <button onclick="filterBooks('OT')" id="tab-ot" class="px-3 py-1 rounded-md font-medium text-slate-400 hover:text-white">A.T.</button>
+            <button onclick="filterBooks('NT')" id="tab-nt" class="px-3 py-1 rounded-md font-medium text-slate-400 hover:text-white">N.T.</button>
+          </div>
+        </div>
+
+        <!-- Books Grid Container -->
+        <div id="books-grid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2.5 max-h-[380px] overflow-y-auto pr-1">
+          <!-- Dynamic Books Loaded Here -->
+        </div>
+      </div>
+
+    </section>
+
+    <!-- RIGHT COLUMN: BADGES & HISTORY (Col 1) -->
+    <section class="space-y-6">
+
+      <!-- ACHIEVEMENTS / BADGES -->
+      <div class="bg-slate-800 border border-slate-700 rounded-2xl p-5 space-y-4">
+        <div class="flex items-center justify-between">
+          <h3 class="font-bold text-slate-200 flex items-center gap-2">
+            <i data-lucide="trophy" class="w-5 h-5 text-amber-500"></i> Conquistas
+          </h3>
+          <span id="badges-count" class="text-xs bg-slate-900 px-2.5 py-1 rounded-full text-amber-400 border border-amber-500/20 font-semibold">0 / 6</span>
+        </div>
+
+        <div id="badges-list" class="grid grid-cols-1 gap-2.5">
+          <!-- Dynamic Badges -->
+        </div>
+      </div>
+
+      <!-- READING HISTORY & LOG -->
+      <div class="bg-slate-800 border border-slate-700 rounded-2xl p-5 space-y-4">
+        <h3 class="font-bold text-slate-200 flex items-center gap-2">
+          <i data-lucide="history" class="w-5 h-5 text-sky-400"></i> Histórico de Leitura
+        </h3>
+
+        <div id="reading-history-list" class="space-y-2 max-h-[280px] overflow-y-auto pr-1 text-xs">
+          <!-- Dynamic History Items -->
+        </div>
+      </div>
+
+    </section>
+  </main>
+
+  <!-- MODAL: READER (API FETCH REAL-TIME) -->
+  <div id="reader-modal" class="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm hidden flex items-center justify-center p-2 sm:p-4">
+    <div class="bg-slate-900 border border-slate-700 w-full max-w-3xl max-h-[92vh] rounded-2xl shadow-2xl flex flex-col overflow-hidden">
+      
+      <!-- Modal Header -->
+      <div class="px-5 py-4 border-b border-slate-800 flex items-center justify-between bg-slate-800/50">
+        <div class="flex items-center gap-3">
+          <div class="p-2 bg-brand-600/20 text-brand-400 rounded-lg">
+            <i data-lucide="book-open" class="w-5 h-5"></i>
+          </div>
+          <div>
+            <h3 id="modal-chapter-title" class="font-bold text-lg text-white">Carregando...</h3>
+            <span id="modal-version-tag" class="text-xs text-slate-400 bg-slate-800 px-2 py-0.5 rounded border border-slate-700">Tradução: Almeida</span>
+          </div>
+        </div>
+        <button onclick="closeReaderModal()" class="text-slate-400 hover:text-white p-2 rounded-lg hover:bg-slate-800 transition">
+          <i data-lucide="x" class="w-6 h-6"></i>
+        </button>
+      </div>
+
+      <!-- Modal Body (Verses / Content) -->
+      <div id="modal-reader-body" class="p-6 overflow-y-auto flex-1 space-y-4 text-slate-200 leading-relaxed font-serif text-base sm:text-lg">
+        <!-- Spinner or Bible Content -->
+        <div class="flex flex-col items-center justify-center py-12 text-slate-400 space-y-3">
+          <i data-lucide="loader-2" class="w-8 h-8 animate-spin text-brand-500"></i>
+          <p class="text-sm font-sans">Buscando versículos reais na API...</p>
+        </div>
+      </div>
+
+      <!-- Modal Footer -->
+      <div class="p-4 border-t border-slate-800 bg-slate-800/40 flex items-center justify-between flex-wrap gap-3">
+        <div class="flex items-center gap-2 text-xs text-slate-400">
+          <i data-lucide="sparkles" class="w-4 h-4 text-amber-400"></i>
+          <span>Recompensa: <strong>+50 XP</strong> e +1 dia de Ofensiva</span>
+        </div>
+
+        <button id="btn-complete-chapter" onclick="completeCurrentChapter()" class="w-full sm:w-auto bg-brand-600 hover:bg-brand-500 text-white font-bold px-6 py-2.5 rounded-xl shadow-lg shadow-brand-600/30 flex items-center justify-center gap-2 transition active:scale-95">
+          <i data-lucide="check-circle-2" class="w-5 h-5"></i>
+          <span>Concluir Capítulo e Avançar</span>
+        </button>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- MODAL: USER PROFILE / LOGIN SIMPLES -->
+  <div id="user-modal" class="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm hidden flex items-center justify-center p-4">
+    <div class="bg-slate-900 border border-slate-700 w-full max-w-md rounded-2xl shadow-2xl p-6 space-y-5">
+      <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+        <h3 class="font-bold text-lg text-white flex items-center gap-2">
+          <i data-lucide="user-cog" class="w-5 h-5 text-brand-500"></i> Perfil do Leitor
+        </h3>
+        <button onclick="closeUserModal()" class="text-slate-400 hover:text-white">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <div class="space-y-4">
+        <div>
+          <label class="block text-xs font-medium text-slate-300 mb-1">Seu Nome / Apelido</label>
+          <input type="text" id="input-user-name" placeholder="Ex: Lucas" class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:ring-2 focus:ring-brand-500">
+        </div>
+
+        <div class="bg-slate-800/50 p-3 rounded-xl border border-slate-700/60 text-xs text-slate-400 space-y-1">
+          <p class="font-semibold text-slate-300">Armazenamento Local (LocalStorage)</p>
+          <p>Seus dados de progresso, XP, ofensiva e capítulos lidos ficam salvos diretamente neste navegador.</p>
+        </div>
+      </div>
+
+      <div class="flex items-center justify-end gap-3 pt-2">
+        <button onclick="resetProgress()" class="text-xs text-rose-400 hover:text-rose-300 px-3 py-2 rounded-lg hover:bg-rose-950/30 transition">
+          Resetar Progresso
+        </button>
+        <button onclick="saveUserProfile()" class="bg-brand-600 hover:bg-brand-500 text-white font-bold px-5 py-2 rounded-xl text-sm transition">
+          Salvar
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- SCRIPT LOGIC -->
+  <script>
+    // --- ESTUTURA DE DADOS DA BÍBLIA ---
+    const BIBLE_BOOKS = [
+      // Antigo Testamento (39)
+      { id: 'GEN', name: 'Gênesis', nameEn: 'Genesis', testament: 'OT', chapters: 50 },
+      { id: 'EXO', name: 'Êxodo', nameEn: 'Exodus', testament: 'OT', chapters: 40 },
+      { id: 'LEV', name: 'Levítico', nameEn: 'Leviticus', testament: 'OT', chapters: 27 },
+      { id: 'NUM', name: 'Números', nameEn: 'Numbers', testament: 'OT', chapters: 36 },
+      { id: 'DEU', name: 'Deuteronômio', nameEn: 'Deuteronomy', testament: 'OT', chapters: 34 },
+      { id: 'JOS', name: 'Josué', nameEn: 'Joshua', testament: 'OT', chapters: 24 },
+      { id: 'JDG', name: 'Juízes', nameEn: 'Judges', testament: 'OT', chapters: 21 },
+      { id: 'RUT', name: 'Rute', nameEn: 'Ruth', testament: 'OT', chapters: 4 },
+      { id: '1SA', name: '1 Samuel', nameEn: '1Samuel', testament: 'OT', chapters: 31 },
+      { id: '2SA', name: '2 Samuel', nameEn: '2Samuel', testament: 'OT', chapters: 24 },
+      { id: '1KI', name: '1 Reis', nameEn: '1Kings', testament: 'OT', chapters: 22 },
+      { id: '2KI', name: '2 Reis', nameEn: '2Kings', testament: 'OT', chapters: 25 },
+      { id: '1CH', name: '1 Crônicas', nameEn: '1Chronicles', testament: 'OT', chapters: 29 },
+      { id: '2CH', name: '2 Crônicas', nameEn: '2Chronicles', testament: 'OT', chapters: 36 },
+      { id: 'EZR', name: 'Esdras', nameEn: 'Ezra', testament: 'OT', chapters: 10 },
+      { id: 'NEH', name: 'Neemias', nameEn: 'Nehemiah', testament: 'OT', chapters: 13 },
+      { id: 'EST', name: 'Ester', nameEn: 'Esther', testament: 'OT', chapters: 10 },
+      { id: 'JOB', name: 'Jó', nameEn: 'Job', testament: 'OT', chapters: 42 },
+      { id: 'PSA', name: 'Salmos', nameEn: 'Psalms', testament: 'OT', chapters: 150 },
+      { id: 'PRO', name: 'Provérbios', nameEn: 'Proverbs', testament: 'OT', chapters: 31 },
+      { id: 'ECC', name: 'Eclesiastes', nameEn: 'Ecclesiastes', testament: 'OT', chapters: 12 },
+      { id: 'SNG', name: 'Cânticos', nameEn: 'SongofSolomon', testament: 'OT', chapters: 8 },
+      { id: 'ISA', name: 'Isaías', nameEn: 'Isaiah', testament: 'OT', chapters: 66 },
+      { id: 'JER', name: 'Jeremias', nameEn: 'Jeremiah', testament: 'OT', chapters: 52 },
+      { id: 'LAM', name: 'Lamentações', nameEn: 'Lamentations', testament: 'OT', chapters: 5 },
+      { id: 'EZK', name: 'Ezequiel', nameEn: 'Ezekiel', testament: 'OT', chapters: 48 },
+      { id: 'DAN', name: 'Daniel', nameEn: 'Daniel', testament: 'OT', chapters: 12 },
+      { id: 'HOS', name: 'Oséias', nameEn: 'Hosea', testament: 'OT', chapters: 14 },
+      { id: 'JOL', name: 'Joel', nameEn: 'Joel', testament: 'OT', chapters: 3 },
+      { id: 'AMO', name: 'Amós', nameEn: 'Amos', testament: 'OT', chapters: 9 },
+      { id: 'OBA', name: 'Obadias', nameEn: 'Obadiah', testament: 'OT', chapters: 1 },
+      { id: 'JON', name: 'Jonas', nameEn: 'Jonah', testament: 'OT', chapters: 4 },
+      { id: 'MIC', name: 'Miquéias', nameEn: 'Micah', testament: 'OT', chapters: 7 },
+      { id: 'NAM', name: 'Naum', nameEn: 'Nahum', testament: 'OT', chapters: 3 },
+      { id: 'HAB', name: 'Habacuque', nameEn: 'Habakkuk', testament: 'OT', chapters: 3 },
+      { id: 'ZEP', name: 'Sofonias', nameEn: 'Zephaniah', testament: 'OT', chapters: 3 },
+      { id: 'HAG', name: 'Ageu', nameEn: 'Haggai', testament: 'OT', chapters: 2 },
+      { id: 'ZEC', name: 'Zacarias', nameEn: 'Zechariah', testament: 'OT', chapters: 14 },
+      { id: 'MAL', name: 'Malaquias', nameEn: 'Malachi', testament: 'OT', chapters: 4 },
+      // Novo Testamento (27)
+      { id: 'MAT', name: 'Mateus', nameEn: 'Matthew', testament: 'NT', chapters: 28 },
+      { id: 'MRK', name: 'Marcos', nameEn: 'Mark', testament: 'NT', chapters: 16 },
+      { id: 'LUK', name: 'Lucas', nameEn: 'Luke', testament: 'NT', chapters: 24 },
+      { id: 'JHN', name: 'João', nameEn: 'John', testament: 'NT', chapters: 21 },
+      { id: 'ACT', name: 'Atos', nameEn: 'Acts', testament: 'NT', chapters: 28 },
+      { id: 'ROM', name: 'Romanos', nameEn: 'Romans', testament: 'NT', chapters: 16 },
+      { id: '1CO', name: '1 Coríntios', nameEn: '1Corinthians', testament: 'NT', chapters: 16 },
+      { id: '2CO', name: '2 Coríntios', nameEn: '2Corinthians', testament: 'NT', chapters: 13 },
+      { id: 'GAL', name: 'Gálatas', nameEn: 'Galatians', testament: 'NT', chapters: 6 },
+      { id: 'EPH', name: 'Efésios', nameEn: 'Ephesians', testament: 'NT', chapters: 6 },
+      { id: 'PHP', name: 'Filipenses', nameEn: 'Philippians', testament: 'NT', chapters: 4 },
+      { id: 'COL', name: 'Colossenses', nameEn: 'Colossians', testament: 'NT', chapters: 4 },
+      { id: '1TH', name: '1 Tessalonicenses', nameEn: '1Thessalonians', testament: 'NT', chapters: 5 },
+      { id: '2TH', name: '2 Tessalonicenses', nameEn: '2Thessalonians', testament: 'NT', chapters: 3 },
+      { id: '1TI', name: '1 Timóteo', nameEn: '1Timothy', testament: 'NT', chapters: 6 },
+      { id: '2TI', name: '2 Timóteo', nameEn: '2Timothy', testament: 'NT', chapters: 4 },
+      { id: 'TIT', name: 'Tito', nameEn: 'Titus', testament: 'NT', chapters: 3 },
+      { id: 'PHM', name: 'Filemom', nameEn: 'Philemon', testament: 'NT', chapters: 1 },
+      { id: 'HEB', name: 'Hebreus', nameEn: 'Hebrews', testament: 'NT', chapters: 13 },
+      { id: 'JAS', name: 'Tiago', nameEn: 'James', testament: 'NT', chapters: 5 },
+      { id: '1PE', name: '1 Pedro', nameEn: '1Peter', testament: 'NT', chapters: 5 },
+      { id: '2PE', name: '2 Pedro', nameEn: '2Peter', testament: 'NT', chapters: 3 },
+      { id: '1JN', name: '1 João', nameEn: '1John', testament: 'NT', chapters: 5 },
+      { id: '2JN', name: '2 João', nameEn: '2John', testament: 'NT', chapters: 1 },
+      { id: '3JN', name: '3 João', nameEn: '3John', testament: 'NT', chapters: 1 },
+      { id: 'JUD', name: 'Judas', nameEn: 'Jude', testament: 'NT', chapters: 1 },
+      { id: 'REV', name: 'Apocalipse', nameEn: 'Revelation', testament: 'NT', chapters: 22 }
+    ];
+
+    const TOTAL_BIBLE_CHAPTERS = 1189;
+
+    // --- ACHIEVEMENTS DEF ---
+    const BADGES = [
+      { id: 'first_step', title: 'Primeiros Passos', desc: 'Leia o 1º capítulo', icon: 'footprints', req: (s) => s.completedChapters.length >= 1 },
+      { id: 'streak_3', title: 'Hábito Santo', desc: 'Mantenha 3 dias de ofensiva', icon: 'flame', req: (s) => s.streak >= 3 },
+      { id: 'read_10', title: 'Dedicado', desc: 'Complete 10 capítulos', icon: 'book-open', req: (s) => s.completedChapters.length >= 10 },
+      { id: 'genesis_done', title: 'Pai de Multidões', desc: 'Complete todos os cap. de Gênesis', icon: 'globe', req: (s) => isBookCompleted('GEN', s) },
+      { id: 'nt_explorer', title: 'Novo Testamento', desc: 'Leia 5 capítulos do N.T.', icon: 'sparkles', req: (s) => countTestamentRead('NT', s) >= 5 },
+      { id: 'level_5', title: 'Erudito da Palavra', desc: 'Alcance o Nível 5 (500 XP)', icon: 'award', req: (s) => s.xp >= 500 }
+    ];
+
+    // --- INITIAL USER STATE ---
+    let userState = {
+      name: 'Leitor',
+      xp: 0,
+      streak: 0,
+      lastReadDate: null,
+      completedChapters: [], // array de chaves como "GEN-1", "MAT-5"
+      version: 'almeida', // 'almeida' or 'nvi'
+      currentReading: { bookIndex: 0, chapter: 1 },
+      history: []
+    };
+
+    let activeFilter = 'all';
+
+    // --- INITIALIZATION ---
+    window.onload = function() {
+      loadUserData();
+      renderApp();
+      lucide.createIcons();
+    };
+
+    function loadUserData() {
+      const saved = localStorage.getItem('bibliaquest_user');
+      if (saved) {
+        try {
+          userState = { ...userState, ...JSON.parse(saved) };
+        } catch(e) {
+          console.error("Erro ao carregar dados", e);
+        }
+      }
+      checkStreak();
+    }
+
+    function saveUserData() {
+      localStorage.setItem('bibliaquest_user', JSON.stringify(userState));
+      renderApp();
+    }
+
+    // --- STREAK LOGIC ---
+    function checkStreak() {
+      if (!userState.lastReadDate) return;
+      
+      const last = new Date(userState.lastReadDate);
+      const today = new Date();
+      
+      // Reset hours to compare dates
+      last.setHours(0,0,0,0);
+      today.setHours(0,0,0,0);
+
+      const diffTime = Math.abs(today - last);
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+      if (diffDays > 1) {
+        // Streak lost if missed more than 1 day
+        userState.streak = 0;
+        saveUserData();
+      }
+    }
+
+    // --- RENDER APP COMPONENTS ---
+    function renderApp() {
+      // Stats Header
+      document.getElementById('stat-streak').innerText = userState.streak;
+      document.getElementById('stat-xp').innerText = userState.xp;
+      
+      const level = Math.floor(userState.xp / 100) + 1;
+      document.getElementById('stat-level').innerText = `Nível ${level}`;
+      
+      document.getElementById('user-avatar').innerText = (userState.name || 'U').charAt(0).toUpperCase();
+      document.getElementById('version-select').value = userState.version;
+
+      // Current Next Reading Banner
+      const currentBook = BIBLE_BOOKS[userState.currentReading.bookIndex] || BIBLE_BOOKS[0];
+      const chapter = userState.currentReading.chapter;
+      document.getElementById('next-chapter-title').innerText = `${currentBook.name} ${chapter}`;
+      document.getElementById('next-chapter-subtitle').innerText = `Capítulo ${chapter} de ${currentBook.chapters} • ${currentBook.testament === 'OT' ? 'Antigo Testamento' : 'Novo Testamento'}`;
+
+      // Version Text Info Box
+      updateVersionInfoBox();
+
+      // Progress Stats
+      const totalRead = userState.completedChapters.length;
+      const percentage = ((totalRead / TOTAL_BIBLE_CHAPTERS) * 100).toFixed(1);
+      
+      document.getElementById('overall-percentage').innerText = `${percentage}%`;
+      document.getElementById('overall-progress-bar').style.width = `${percentage}%`;
+      document.getElementById('stat-chapters-read').innerText = `${totalRead} / ${TOTAL_BIBLE_CHAPTERS}`;
+
+      const atRead = countTestamentRead('OT', userState);
+      const ntRead = countTestamentRead('NT', userState);
+      document.getElementById('stat-at-read').innerText = `${atRead} / 929`;
+      document.getElementById('stat-nt-read').innerText = `${ntRead} / 260`;
+
+      // Render Books Grid
+      renderBooksGrid();
+
+      // Render Badges
+      renderBadges();
+
+      // Render History
+      renderHistory();
+
+      // Re-initialize icons
+      lucide.createIcons();
+    }
+
+    function updateVersionInfoBox() {
+      const boxText = document.getElementById('version-info-text');
+      if (userState.version === 'almeida') {
+        boxText.innerHTML = `Atualmente utilizando a tradução <strong>Almeida (Domínio Público)</strong> via API pública gratuita (<code class="bg-slate-900 px-1 rounded text-sky-300">bible-api.com</code>). Exibe o texto completo sem restrições.`;
+      } else {
+        boxText.innerHTML = `Versão selecionada: <strong>NVI (Nova Versão Internacional)</strong>. <span class="text-amber-400">Nota de Direitos Autorais:</span> A NVI possui copyright registrado pela <em>Biblica Inc.</em> O leitor fará fallback seguro com explicação se não houver chave oficial configurada.`;
+      }
+    }
+
+    function countTestamentRead(testament, state) {
+      let count = 0;
+      state.completedChapters.forEach(key => {
+        const bookId = key.split('-')[0];
+        const book = BIBLE_BOOKS.find(b => b.id === bookId);
+        if (book && book.testament === testament) count++;
+      });
+      return count;
+    }
+
+    function isBookCompleted(bookId, state) {
+      const book = BIBLE_BOOKS.find(b => b.id === bookId);
+      if (!book) return false;
+      for (let i = 1; i <= book.chapters; i++) {
+        if (!state.completedChapters.includes(`${bookId}-${i}`)) return false;
+      }
+      return true;
+    }
+
+    // --- BOOKS GRID & FILTERS ---
+    function filterBooks(type) {
+      activeFilter = type;
+      document.getElementById('tab-all').className = `px-3 py-1 rounded-md font-medium ${type === 'all' ? 'text-white bg-slate-700' : 'text-slate-400 hover:text-white'}`;
+      document.getElementById('tab-ot').className = `px-3 py-1 rounded-md font-medium ${type === 'OT' ? 'text-white bg-slate-700' : 'text-slate-400 hover:text-white'}`;
+      document.getElementById('tab-nt').className = `px-3 py-1 rounded-md font-medium ${type === 'NT' ? 'text-white bg-slate-700' : 'text-slate-400 hover:text-white'}`;
+      renderBooksGrid();
+    }
+
+    function renderBooksGrid() {
+      const container = document.getElementById('books-grid');
+      container.innerHTML = '';
+
+      const filtered = BIBLE_BOOKS.filter(b => activeFilter === 'all' || b.testament === activeFilter);
+
+      filtered.forEach(book => {
+        // Count how many chapters read in this book
+        let readInBook = 0;
+        for (let c = 1; c <= book.chapters; c++) {
+          if (userState.completedChapters.includes(`${book.id}-${c}`)) readInBook++;
+        }
+
+        const isComplete = readInBook === book.chapters;
+        const pct = Math.round((readInBook / book.chapters) * 100);
+
+        const card = document.createElement('button');
+        card.onclick = () => selectBookForReading(book.id);
+        card.className = `p-3 rounded-xl border text-left flex flex-col justify-between transition hover:border-brand-500/50 ${
+          isComplete 
+            ? 'bg-brand-950/20 border-brand-500/40 text-brand-300' 
+            : 'bg-slate-900/80 border-slate-700/80 text-slate-300 hover:bg-slate-700/40'
+        }`;
+
+        card.innerHTML = `
+          <div>
+            <div class="flex items-center justify-between text-xs font-bold text-white mb-1">
+              <span class="truncate">${book.name}</span>
+              ${isComplete ? '<i data-lucide="check-circle" class="w-3.5 h-3.5 text-brand-400"></i>' : ''}
+            </div>
+            <p class="text-[10px] text-slate-400">${book.chapters} cap ${book.testament === 'OT' ? '• AT' : '• NT'}</p>
+          </div>
+          <div class="mt-2">
+            <div class="flex justify-between text-[9px] text-slate-400 mb-0.5">
+              <span>${readInBook}/${book.chapters}</span>
+              <span>${pct}%</span>
+            </div>
+            <div class="w-full bg-slate-800 rounded-full h-1 overflow-hidden">
+              <div class="bg-brand-500 h-full" style="width: ${pct}%"></div>
+            </div>
+          </div>
+        `;
+        container.appendChild(card);
+      });
+
+      lucide.createIcons();
+    }
+
+    function selectBookForReading(bookId) {
+      const bookIndex = BIBLE_BOOKS.findIndex(b => b.id === bookId);
+      if (bookIndex !== -1) {
+        // Find first unread chapter in this book or chapter 1
+        const book = BIBLE_BOOKS[bookIndex];
+        let targetChapter = 1;
+        for (let c = 1; c <= book.chapters; c++) {
+          if (!userState.completedChapters.includes(`${book.id}-${c}`)) {
+            targetChapter = c;
+            break;
+          }
+        }
+        userState.currentReading = { bookIndex, chapter: targetChapter };
+        saveUserData();
+        openReaderModal();
+      }
+    }
+
+    function scrollToBooks() {
+      document.getElementById('books-section').scrollIntoView({ behavior: 'smooth' });
+    }
+
+    function changeBibleVersion(version) {
+      userState.version = version;
+      saveUserData();
+    }
+
+    // --- READER MODAL & API INTEGRATION ---
+    async function openReaderModal() {
+      const modal = document.getElementById('reader-modal');
+      const modalTitle = document.getElementById('modal-chapter-title');
+      const versionTag = document.getElementById('modal-version-tag');
+      const body = document.getElementById('modal-reader-body');
+
+      const book = BIBLE_BOOKS[userState.currentReading.bookIndex];
+      const chapter = userState.currentReading.chapter;
+
+      modalTitle.innerText = `${book.name} ${chapter}`;
+      versionTag.innerText = `Tradução: ${userState.version === 'nvi' ? 'NVI (Info / Fallback)' : 'Almeida (AA / API)'}`;
+      
+      modal.classList.remove('hidden');
+
+      // Loading State
+      body.innerHTML = `
+        <div class="flex flex-col items-center justify-center py-16 text-slate-400 space-y-3 font-sans">
+          <i data-lucide="loader-2" class="w-8 h-8 animate-spin text-brand-500"></i>
+          <p class="text-sm">Buscando versículos reais na API para ${book.name} ${chapter}...</p>
+        </div>
+      `;
+      lucide.createIcons();
+
+      // Fetch Real Chapter Text
+      try {
+        if (userState.version === 'nvi') {
+          // Explanatory Message for NVI Copyright
+          setTimeout(() => {
+            body.innerHTML = `
+              <div class="space-y-4 font-sans">
+                <div class="bg-amber-950/30 border border-amber-500/40 rounded-xl p-4 text-amber-200 text-sm">
+                  <div class="flex items-center gap-2 font-bold mb-1 text-amber-400">
+                    <i data-lucide="shield-alert" class="w-5 h-5"></i>
+                    Aviso de Licença da Versão NVI
+                  </div>
+                  <p class="leading-relaxed text-xs sm:text-sm">
+                    A versão <strong>NVI (Nova Versão Internacional)</strong> é protegida por direitos autorais e de propriedade intelectual da <em>Biblica, Inc.</em>
+                    Para utilizá-la comercialmente ou em larga escala via API pública, é exigido um token de licença oficial.
+                  </p>
+                </div>
+
+                <div class="bg-slate-800 p-4 rounded-xl border border-slate-700 text-sm text-slate-300">
+                  <p class="font-bold text-white mb-2">Exibição Fallback (Almeida) para ${book.name} ${chapter}:</p>
+                  <p class="text-xs text-slate-400 mb-3">Abaixo o texto é trazido da versão pública Almeida para que você não perca sua leitura diária:</p>
+                </div>
+              </div>
+            `;
+            // Append public Almeida text below fallback notice
+            fetchAndRenderPublicBible(book.nameEn, chapter, body, true);
+          }, 600);
+        } else {
+          // Standard Almeida Fetch
+          await fetchAndRenderPublicBible(book.nameEn, chapter, body, false);
+        }
+      } catch (err) {
+        body.innerHTML = `
+          <div class="bg-rose-950/40 border border-rose-500/40 p-4 rounded-xl text-rose-300 text-sm text-center font-sans">
+            <i data-lucide="alert-triangle" class="w-8 h-8 mx-auto mb-2 text-rose-400"></i>
+            Não foi possível carregar o texto da API no momento. Verifique sua conexão com a internet.
+          </div>
+        `;
+        lucide.createIcons();
+      }
+    }
+
+    async function fetchAndRenderPublicBible(bookEn, chapter, containerElement, appendMode = false) {
+      // Endpoint public: https://bible-api.com/Genesis+1?translation=almeida
+      const response = await fetch(`https://bible-api.com/${encodeURIComponent(bookEn)}+${chapter}?translation=almeida`);
+      
+      if (!response.ok) {
+        throw new Error('Falha ao comunicar com a API da Bíblia');
+      }
+
+      const data = await response.json();
+
+      let versesHtml = '<div class="space-y-3 font-serif mt-2">';
+      if (data.verses && data.verses.length > 0) {
+        data.verses.forEach(v => {
+          versesHtml += `
+            <p class="text-slate-200 leading-relaxed text-base sm:text-lg">
+              <sup class="text-xs font-sans font-bold text-brand-400 mr-1 select-none">${v.verse}</sup>${v.text.trim()}
+            </p>
+          `;
+        });
+      } else {
+        versesHtml += `<p class="text-slate-400 font-sans text-sm">Nenhum versículo encontrado para este capítulo.</p>`;
+      }
+      versesHtml += '</div>';
+
+      if (appendMode) {
+        containerElement.innerHTML += versesHtml;
+      } else {
+        containerElement.innerHTML = versesHtml;
+      }
+
+      lucide.createIcons();
+    }
+
+    function closeReaderModal() {
+      document.getElementById('reader-modal').classList.add('hidden');
+    }
+
+    // --- COMPLETE CHAPTER & GAMIFICATION ---
+    function completeCurrentChapter() {
+      const currentBook = BIBLE_BOOKS[userState.currentReading.bookIndex];
+      const chapter = userState.currentReading.chapter;
+      const chapterKey = `${currentBook.id}-${chapter}`;
+
+      // Check if already completed previously
+      const isNewCompletion = !userState.completedChapters.includes(chapterKey);
+
+      if (isNewCompletion) {
+        userState.completedChapters.push(chapterKey);
+        userState.xp += 50; // Add 50 XP per new chapter
+      }
+
+      // Update Streak
+      const todayStr = new Date().toISOString().split('T')[0];
+      if (userState.lastReadDate !== todayStr) {
+        userState.streak += 1;
+        userState.lastReadDate = todayStr;
+      }
+
+      // Add to History
+      userState.history.unshift({
+        title: `${currentBook.name} ${chapter}`,
+        date: new Date().toLocaleDateString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
+        xpGained: isNewCompletion ? 50 : 0
+      });
+      if (userState.history.length > 20) userState.history.pop();
+
+      // Advance to next chapter
+      advanceToNextChapter(currentBook, chapter);
+
+      saveUserData();
+      closeReaderModal();
+
+      // Simple Feedback Toast/Alert
+      showGamificationNotification(isNewCompletion ? '+50 XP!' : 'Capítulo Concluído!', `Ofensiva: ${userState.streak} dias consecutívos 🔥`);
+    }
+
+    function advanceToNextChapter(currentBook, currentChapter) {
+      if (currentChapter < currentBook.chapters) {
+        userState.currentReading.chapter = currentChapter + 1;
+      } else {
+        // Move to next book in order
+        if (userState.currentReading.bookIndex < BIBLE_BOOKS.length - 1) {
+          userState.currentReading.bookIndex += 1;
+          userState.currentReading.chapter = 1;
+        }
+      }
+    }
+
+    function showGamificationNotification(title, sub) {
+      const toast = document.createElement('div');
+      toast.className = 'fixed bottom-5 right-5 z-50 bg-slate-800 border border-brand-500/50 text-white p-4 rounded-2xl shadow-2xl flex items-center gap-3 animate-bounce-short';
+      toast.innerHTML = `
+        <div class="p-2 bg-brand-600 rounded-xl text-white">
+          <i data-lucide="zap" class="w-6 h-6 fill-current"></i>
+        </div>
+        <div>
+          <h4 class="font-bold text-sm text-brand-400">${title}</h4>
+          <p class="text-xs text-slate-300">${sub}</p>
+        </div>
+      `;
+      document.body.appendChild(toast);
+      lucide.createIcons();
+
+      setTimeout(() => {
+        toast.remove();
+      }, 3500);
+    }
+
+    // --- BADGES RENDER ---
+    function renderBadges() {
+      const container = document.getElementById('badges-list');
+      container.innerHTML = '';
+
+      let unlockedCount = 0;
+
+      BADGES.forEach(badge => {
+        const isUnlocked = badge.req(userState);
+        if (isUnlocked) unlockedCount++;
+
+        const div = document.createElement('div');
+        div.className = `p-3 rounded-xl border flex items-center gap-3 transition ${
+          isUnlocked 
+            ? 'bg-slate-900/90 border-amber-500/40 text-slate-200' 
+            : 'bg-slate-900/40 border-slate-800/60 text-slate-500 opacity-60'
+        }`;
+
+        div.innerHTML = `
+          <div class="p-2 rounded-lg ${isUnlocked ? 'bg-amber-500/20 text-amber-400' : 'bg-slate-800 text-slate-600'}">
+            <i data-lucide="${badge.icon}" class="w-5 h-5"></i>
+          </div>
+          <div class="flex-1">
+            <h4 class="text-xs font-bold ${isUnlocked ? 'text-white' : 'text-slate-400'}">${badge.title}</h4>
+            <p class="text-[10px] text-slate-400">${badge.desc}</p>
+          </div>
+          ${isUnlocked ? '<i data-lucide="check" class="w-4 h-4 text-amber-400"></i>' : '<i data-lucide="lock" class="w-3.5 h-3.5 text-slate-600"></i>'}
+        `;
+        container.appendChild(div);
+      });
+
+      document.getElementById('badges-count').innerText = `${unlockedCount} / ${BADGES.length}`;
+      lucide.createIcons();
+    }
+
+    // --- HISTORY RENDER ---
+    function renderHistory() {
+      const container = document.getElementById('reading-history-list');
+      container.innerHTML = '';
+
+      if (userState.history.length === 0) {
+        container.innerHTML = `<p class="text-slate-500 text-xs italic py-2">Nenhuma leitura registrada ainda. Clique em "Ler Agora" para começar!</p>`;
+        return;
+      }
+
+      userState.history.forEach(item => {
+        const div = document.createElement('div');
+        div.className = 'flex items-center justify-between p-2.5 bg-slate-900/60 rounded-xl border border-slate-800';
+        div.innerHTML = `
+          <div class="flex items-center gap-2">
+            <i data-lucide="check-circle-2" class="w-4 h-4 text-brand-500"></i>
+            <span class="font-medium text-slate-200">${item.title}</span>
+          </div>
+          <div class="flex items-center gap-2 text-[10px] text-slate-400">
+            <span>${item.date}</span>
+            ${item.xpGained > 0 ? `<span class="bg-brand-500/20 text-brand-400 font-bold px-1.5 py-0.5 rounded">+${item.xpGained} XP</span>` : ''}
+          </div>
+        `;
+        container.appendChild(div);
+      });
+
+      lucide.createIcons();
+    }
+
+    // --- USER PROFILE MODAL & LOCAL STORAGE MANAGEMENT ---
+    function openUserModal() {
+      document.getElementById('input-user-name').value = userState.name;
+      document.getElementById('user-modal').classList.remove('hidden');
+    }
+
+    function closeUserModal() {
+      document.getElementById('user-modal').classList.add('hidden');
+    }
+
+    function saveUserProfile() {
+      const newName = document.getElementById('input-user-name').value.trim();
+      if (newName) {
+        userState.name = newName;
+        saveUserData();
+      }
+      closeUserModal();
+    }
+
+    function resetProgress() {
+      if (confirm('Tem certeza que deseja resetar todo o seu progresso e XP?')) {
+        localStorage.removeItem('bibliaquest_user');
+        userState = {
+          name: 'Leitor',
+          xp: 0,
+          streak: 0,
+          lastReadDate: null,
+          completedChapters: [],
+          version: 'almeida',
+          currentReading: { bookIndex: 0, chapter: 1 },
+          history: []
+        };
+        saveUserData();
+        closeUserModal();
+      }
+    }
+  </script>
+</body>
+</html>
